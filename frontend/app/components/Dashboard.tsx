@@ -141,15 +141,25 @@ export default function Dashboard() {
             const result = await response.json()
             setLatestSummary(result.structured_summary)
 
-            const newSummary = {
-                id: Math.random().toString(), // Use a more robust ID in production
-                created_at: new Date().toISOString(),
-                client_name: clientName || 'Untitled',
-                structured_summary: result.structured_summary,
-            }
-            // Add new summary to the start of the list for immediate visibility
-            setSummaries(prevSummaries => [newSummary, ...prevSummaries])
-            setClientName('')
+            // Fetch summaries again to include the newly added one from the DB
+            // This ensures the ID and created_at are accurate
+            const { data, error } = await supabase
+                .from('summaries')
+                .select('*')
+                .order('created_at', { ascending: false })
+            if (!error && data) setSummaries(data)
+
+
+            // Old optimistic update (can cause issues with keys/ids):
+            // const newSummary = {
+            //   id: Math.random().toString(), // Use a more robust ID in production
+            //   created_at: new Date().toISOString(),
+            //   client_name: clientName || 'Untitled',
+            //   structured_summary: result.structured_summary,
+            // }
+            // setSummaries(prevSummaries => [newSummary, ...prevSummaries])
+
+            setClientName('') // Clear client name input
             toast.success('🎉 Summary Generated!', {
                 description: 'Your new note is ready.',
             })
