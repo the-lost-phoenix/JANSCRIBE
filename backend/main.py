@@ -26,7 +26,8 @@ app = FastAPI(title="JanScribe Backend")
 # --- 2. Configure CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Frontend origin
+    # Allow localhost and potentially your deployed Vercel URL
+    allow_origins=["http://localhost:3000", "https://janscribe.vercel.app/"], # Replace with your actual Vercel URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +62,7 @@ async def process_audio(
 
         # --- Step 1: Prepare Audio Blob Dictionary ---
         audio_data = await file.read()
-        
+
         mime_type = file.content_type
         if not mime_type:
             # Guess mime type if not provided (e.g., 'audio/webm')
@@ -72,17 +73,17 @@ async def process_audio(
             "mime_type": mime_type,
             "data": audio_data
         }
-        
+
         # --- Step 2: Transcribe with Gemini (Pass 1) ---
         transcription_prompt = """
         Please transcribe the attached audio file accurately.
         The audio may be in English, Kannada, Tulu, Hindi, or a mix of languages.
         Provide ONLY the raw, full transcription of all spoken words. Do not add any extra commentary.
         """
-        
+
         # Send the prompt AND the audio part dictionary in ONE call
         transcription_response = gemini_model.generate_content([transcription_prompt, audio_part])
-        
+
         # Add robust error checking for Gemini response format
         try:
              original_transcript = transcription_response.text
@@ -98,11 +99,11 @@ async def process_audio(
 
 
         # Check if transcript is empty or just noise
-        if not original_transcript or len(original_transcript.split()) < 2: 
+        if not original_transcript or len(original_transcript.split()) < 2:
             raise HTTPException(status_code=400, detail="Audio was silent or could not be transcribed reliably by Gemini.")
 
         # --- Step 3: Translate & Summarize with Gemini (Pass 2) ---
-        
+
         # Prompt for clean PDFs without markdown
         summarization_prompt = f"""
         You are an expert professional assistant (like a doctor's or lawyer's scribe).
@@ -110,19 +111,19 @@ async def process_audio(
 
         1.  First, translate the entire transcript into fluent, professional English.
         2.  Second, analyze the English translation and generate a structured, concise summary.
-        
+
         **IMPORTANT FORMATTING RULES:**
         3.  Format the summary as **plain text only**.
         4.  Use **ALL CAPS** for headings (e.g., CHIEF COMPLAINT, HISTORY).
         5.  **Do NOT use any markdown characters** like `*`, `#`, or `_`. The output must be clean text for a PDF report.
-        
+
         Transcript: "{original_transcript}"
 
         Structured English Summary:
         """
-        
+
         summarization_response = gemini_model.generate_content(summarization_prompt)
-        
+
         # Add robust error checking for summarization response
         try:
              structured_summary = summarization_response.text
@@ -146,7 +147,7 @@ async def process_audio(
         supabase.table("summaries").insert(db_data).execute()
 
         # --- Step 5: Return the Final Summary ---
-        
+
         return {"structured_summary": structured_summary}
 
     except HTTPException as http_exc: # Re-raise HTTP exceptions directly
