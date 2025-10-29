@@ -26,8 +26,11 @@ app = FastAPI(title="JanScribe Backend")
 # --- 2. Configure CORS ---
 app.add_middleware(
     CORSMiddleware,
-    # Allow localhost and potentially your deployed Vercel URL
-    allow_origins=["http://localhost:3000", "https://vercel.com/vijay-netekals-projects/janscribe/2FCgPzxuW3rEELaApWFopv9TUvhM"], # Replace with your actual Vercel URL
+    # Add your production Vercel URL here
+    allow_origins=[
+        "http://localhost:3000", # For local development
+        "https://janscribe.vercel.app" # Your deployed frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
